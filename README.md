@@ -36,3 +36,27 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## API REST
+
+A API REST valida os dados de uma cotação e prepara links para o cliente enviar a solicitação ao comercial pelo WhatsApp. O site usa o endpoint `POST /api/v1/cotacoes` depois de organizar a descrição com o assistente. A API não grava as cotações em banco de dados.
+
+Base URL: `https://reylogtransportes.lovable.app/api/v1`
+
+### Endpoints
+
+- `GET /` — lista os endpoints disponíveis.
+- `GET /health` — retorna o status e a versão da API.
+- `POST /cotacoes` — valida a cotação e retorna uma mensagem e os links do WhatsApp.
+
+### Exemplo de solicitação
+
+```bash
+curl -X POST https://reylogtransportes.lovable.app/api/v1/cotacoes \
+  -H "Content-Type: application/json" \
+  -d '{"veiculo":"BMW X1","origem":"Betim/MG","destino":"São Paulo/SP","modalidade":"Carreta cegonha","observacoes":"Veículo rodando; coleta na próxima semana."}'
+```
+
+A resposta inclui a cotação validada, a mensagem formatada e os links de contato. A API não persiste esses dados. O envio só acontece quando o cliente abre um dos links do WhatsApp.
+
+O endpoint de cotação aceita somente JSON, valida os campos e limita o corpo a 8 KB. Códigos de erro incluem `400`, `403`, `405`, `413`, `415` e `422`.
