@@ -6,16 +6,10 @@ import { Button } from "@/components/ui/button";
 import { generateQuote } from "@/lib/ai/quote.functions";
 import type { QuoteRequest } from "@/lib/ai/quote.server";
 
-export function buildQuoteMessage(q: QuoteRequest) {
-  return [
-    "Olá! Vim pelo site da ReyLog e gostaria de uma cotação:",
-    `*Veículo:* ${q.veiculo}`,
-    `*Origem:* ${q.origem}`,
-    `*Destino:* ${q.destino}`,
-    `*Modalidade:* ${q.modalidade}`,
-    `*Observações:* ${q.observacoes}`,
-  ].join("\n");
-}
+type QuoteApiResponse = {
+  data?: { cotacao: QuoteRequest; contatos: { name: string; url: string }[] };
+  error?: { message?: string };
+};
 
 export function QuoteAssistant({
   contacts,
@@ -25,6 +19,7 @@ export function QuoteAssistant({
   const run = useServerFn(generateQuote);
   const [text, setText] = useState("");
   const [quote, setQuote] = useState<QuoteRequest | null>(null);
+  const [whatsappUrls, setWhatsappUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +28,18 @@ export function QuoteAssistant({
     setError(null);
     setLoading(true);
     try {
-      setQuote(await run({ data: { description: text } }));
+      const organized = await run({ data: { description: text } });
+      const response = await fetch("/api/v1/cotacoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(organized),
+      });
+      const payload = (await response.json()) as QuoteApiResponse;
+      if (!response.ok || !payload.data) {
+        throw new Error(payload.error?.message ?? "Não foi possível preparar os links do WhatsApp.");
+      }
+      setQuote(payload.data.cotacao);
+      setWhatsappUrls(Object.fromEntries(payload.data.contatos.map((contact) => [contact.name, contact.url])));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível organizar a cotação.");
     } finally {
@@ -91,7 +97,7 @@ export function QuoteAssistant({
               {contacts.map((c) => (
                 <Button asChild key={c.name} className="h-auto min-h-11 rounded-full px-5 py-3 font-semibold shadow-none"><a
                   key={c.name}
-                  href={`https://wa.me/${c.number}?text=${encodeURIComponent(buildQuoteMessage(quote))}`}
+                  href={whatsappUrls[c.name] ?? "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
